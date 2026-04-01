@@ -1,4 +1,114 @@
-="text-amber-400 font-bold mr-1">■</span>Due ≤7 days</div>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GRC Compliance Calendar – Czech Financial Institutions (DORA)</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    :root {
+      --dora: #7C3AED;
+      --cnb: #2563EB;
+      --aml: #DC2626;
+      --gdpr: #16A34A;
+      --mifid: #EA580C;
+      --crr3: #1E40AF;
+      --solvency: #0D9488;
+      --emir: #D97706;
+      --psd2: #DB2777;
+      --esg: #65A30D;
+      --czech: #6B7280;
+    }
+    body { font-family: 'Segoe UI', system-ui, sans-serif; background: #F1F5F9; }
+    .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); }
+    .cal-cell { min-height: 90px; background: #fff; border: 1px solid #E2E8F0; padding: 4px; position: relative; transition: background 0.15s; }
+    .cal-cell:hover { background: #F8FAFC; }
+    .cal-cell.other-month { background: #F8FAFC; }
+    .cal-cell.today { background: #EFF6FF; border-color: #3B82F6; }
+    .event-dot { display: flex; align-items: center; gap: 4px; padding: 2px 5px; border-radius: 4px; font-size: 10px; font-weight: 600; color: #fff; cursor: pointer; margin-bottom: 2px; line-height: 1.3; transition: opacity 0.15s; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+    .event-dot:hover { opacity: 0.85; transform: scale(1.01); }
+    .event-dot.overdue { outline: 2px solid #EF4444; }
+    .event-dot.due-soon { outline: 2px solid #F59E0B; }
+    .dot { width: 6px; height: 6px; border-radius: 50%; background: rgba(255,255,255,0.7); flex-shrink: 0; }
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.55); z-index: 50; display: flex; align-items: center; justify-content: center; padding: 16px; }
+    .modal { background: #fff; border-radius: 12px; width: 100%; max-width: 680px; max-height: 90vh; overflow-y: auto; box-shadow: 0 25px 50px rgba(0,0,0,0.3); }
+    .modal-header { padding: 20px 24px 16px; border-bottom: 1px solid #E2E8F0; position: sticky; top: 0; background: #fff; z-index: 1; }
+    .progress-bar { height: 6px; background: #E2E8F0; border-radius: 3px; overflow: hidden; }
+    .progress-fill { height: 100%; border-radius: 3px; background: #22C55E; transition: width 0.3s; }
+    .checklist-item { display: flex; align-items: flex-start; gap: 10px; padding: 8px 0; border-bottom: 1px solid #F1F5F9; cursor: pointer; }
+    .checklist-item:last-child { border-bottom: none; }
+    .checklist-item input[type=checkbox] { margin-top: 2px; width: 16px; height: 16px; cursor: pointer; accent-color: #22C55E; flex-shrink: 0; }
+    .checklist-item label { font-size: 13.5px; color: #374151; cursor: pointer; line-height: 1.4; }
+    .checklist-item.done label { text-decoration: line-through; color: #9CA3AF; }
+    .badge { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 600; }
+    .sidebar-item { padding: 10px 12px; border-radius: 8px; border-left: 4px solid; margin-bottom: 8px; background: #fff; cursor: pointer; transition: box-shadow 0.15s; }
+    .sidebar-item:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+    .legend-item { display: flex; align-items: center; gap: 6px; font-size: 11px; white-space: nowrap; }
+    .legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+    select, input[type=text] { border: 1px solid #D1D5DB; border-radius: 6px; padding: 6px 10px; font-size: 13px; background: #fff; color: #374151; outline: none; }
+    select:focus, input[type=text]:focus { border-color: #6366F1; box-shadow: 0 0 0 2px rgba(99,102,241,0.2); }
+    textarea { border: 1px solid #D1D5DB; border-radius: 6px; padding: 8px 10px; font-size: 13px; width: 100%; resize: vertical; outline: none; }
+    textarea:focus { border-color: #6366F1; box-shadow: 0 0 0 2px rgba(99,102,241,0.2); }
+    @media (max-width: 900px) { .sidebar { display: none; } }
+  </style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="bg-slate-900 text-white px-6 py-4 shadow-lg">
+  <div class="max-w-screen-xl mx-auto flex flex-wrap items-center justify-between gap-3">
+    <div>
+      <h1 class="text-xl font-bold tracking-tight">⚖️ GRC Compliance Calendar</h1>
+      <p class="text-slate-400 text-xs mt-0.5">Czech Financial Institutions · DORA Scope · 2026</p>
+    </div>
+    <div class="flex flex-wrap gap-2 items-center">
+      <select id="filterReg" onchange="renderAll()" class="text-sm">
+        <option value="">All Regulations</option>
+        <option value="DORA">DORA</option>
+        <option value="CNB Reporting">CNB Reporting</option>
+        <option value="AML/CFT">AML/CFT</option>
+        <option value="GDPR">GDPR</option>
+        <option value="MiFID II">MiFID II</option>
+        <option value="CRR3/Basel III">CRR3/Basel III</option>
+        <option value="Solvency II">Solvency II</option>
+        <option value="EMIR">EMIR</option>
+        <option value="PSD2">PSD2</option>
+        <option value="ESG">ESG</option>
+        <option value="Czech Law">Czech Law</option>
+      </select>
+      <select id="filterInst" onchange="renderAll()" class="text-sm">
+        <option value="">All Institutions</option>
+        <option value="Banks">Banks</option>
+        <option value="Investment Firms">Investment Firms</option>
+        <option value="Payment Institutions">Payment Institutions</option>
+        <option value="E-money Institutions">E-money Institutions</option>
+        <option value="Insurance">Insurance</option>
+        <option value="CASPs">CASPs (Crypto)</option>
+        <option value="CCPs">CCPs</option>
+        <option value="CSDs">CSDs</option>
+        <option value="Trading Venues">Trading Venues</option>
+      </select>
+      <button onclick="goToday()" class="bg-indigo-600 hover:bg-indigo-700 text-white text-sm px-3 py-1.5 rounded-md font-medium">Today</button>
+    </div>
+  </div>
+</div>
+
+<!-- LEGEND -->
+<div class="bg-slate-800 px-6 py-2">
+  <div class="max-w-screen-xl mx-auto flex flex-wrap gap-x-4 gap-y-1">
+    <div class="legend-item text-slate-300"><div class="legend-dot" style="background:var(--dora)"></div>DORA</div>
+    <div class="legend-item text-slate-300"><div class="legend-dot" style="background:var(--cnb)"></div>CNB Reporting</div>
+    <div class="legend-item text-slate-300"><div class="legend-dot" style="background:var(--aml)"></div>AML/CFT</div>
+    <div class="legend-item text-slate-300"><div class="legend-dot" style="background:var(--gdpr)"></div>GDPR</div>
+    <div class="legend-item text-slate-300"><div class="legend-dot" style="background:var(--mifid)"></div>MiFID II</div>
+    <div class="legend-item text-slate-300"><div class="legend-dot" style="background:var(--crr3)"></div>CRR3/Basel III</div>
+    <div class="legend-item text-slate-300"><div class="legend-dot" style="background:var(--solvency)"></div>Solvency II</div>
+    <div class="legend-item text-slate-300"><div class="legend-dot" style="background:var(--emir)"></div>EMIR</div>
+    <div class="legend-item text-slate-300"><div class="legend-dot" style="background:var(--psd2)"></div>PSD2</div>
+    <div class="legend-item text-slate-300"><div class="legend-dot" style="background:var(--esg)"></div>ESG</div>
+    <div class="legend-item text-slate-300"><div class="legend-dot" style="background:var(--czech)"></div>Czech Law</div>
+    <div class="legend-item text-slate-400 ml-4"><span class="text-red-400 font-bold mr-1">■</span>Overdue</div>
+    <div class="legend-item text-slate-400"><span class="text-amber-400 font-bold mr-1">■</span>Due ≤7 days</div>
   </div>
 </div>
 
@@ -39,11 +149,11 @@
   <!-- SIDEBAR -->
   <div class="sidebar w-72 flex-shrink-0">
     <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
-      <h3 class="font-bold text-slate-800 mb-3 text-sm uppercase tracking-wide">Upcoming (30 days)</h3>
+      <h3 class="font-bold text-slate-800 mb-3 text-sm uppercase tracking-wide">⏰ Upcoming (30 days)</h3>
       <div id="upcomingList" class="space-y-0"></div>
     </div>
     <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4 mt-4">
-      <h3 class="font-bold text-slate-800 mb-3 text-sm uppercase tracking-wide">Progress</h3>
+      <h3 class="font-bold text-slate-800 mb-3 text-sm uppercase tracking-wide">📊 Progress</h3>
       <div id="progressSummary"></div>
     </div>
   </div>
@@ -76,7 +186,7 @@
       <p id="modalDesc" class="text-slate-600 text-sm mb-4 leading-relaxed"></p>
       <div id="modalInstitutions" class="mb-4"></div>
       <div class="flex items-center justify-between mb-3">
-        <h4 class="font-semibold text-slate-800 text-sm">Compliance Checklist</h4>
+        <h4 class="font-semibold text-slate-800 text-sm">📋 Compliance Checklist</h4>
         <div class="flex gap-2">
           <button onclick="markAllDone()" class="text-xs bg-green-50 hover:bg-green-100 text-green-700 border border-green-200 px-3 py-1 rounded-md font-medium">Mark all done</button>
           <button onclick="markAllUndone()" class="text-xs bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-200 px-3 py-1 rounded-md font-medium">Reset</button>
@@ -84,17 +194,15 @@
       </div>
       <div id="modalChecklist" class="mb-6"></div>
       <div>
-        <h4 class="font-semibold text-slate-800 text-sm mb-2">Notes</h4>
+        <h4 class="font-semibold text-slate-800 text-sm mb-2">📝 Notes</h4>
         <textarea id="modalNotes" rows="3" placeholder="Add notes, owner, or action items..." class="text-sm"></textarea>
       </div>
     </div>
   </div>
 </div>
 
-</div>
-
 <script>
-// ─────────────────────────────────────────────────────────────────────────
+// ─── DATA ───────────────────────────────────────────────────────────────────
 
 const REG_COLORS = {
   'DORA': '#7C3AED',
@@ -112,7 +220,7 @@ const REG_COLORS = {
 
 const EVENTS = [
   {id:1,title:"MREL Reporting H2",date:"2026-01-31",regulation:"CNB Reporting",institutions:["Banks"],description:"Semi-annual MREL (Minimum Requirement for own funds and Eligible Liabilities) report for H2 to CNB/Czech Resolution Authority.",checklist:["Calculate MREL ratio as at December 31","Identify all eligible liabilities in the MREL stack","Assess compliance with MREL target set by resolution authority","Review funding plan and issuance pipeline for H1 to address any shortfall","Prepare MREL reporting templates in required format","Include subordination requirement compliance assessment","Obtain CFO and CRO review and sign-off","Submit to CNB by January 31","Document material changes in liability structure vs. prior period","Archive submission for supervisory review"]},
-  {id:2,title:"AML Annual Report to FÚO",date:"2026-01-31",regulation:"AML/CFT",institutions:["Banks","Payment Institutions","E-money Institutions","Investment Firms","CASPs","Insurance"],description:"Annual report on AML/CFT activities submitted to the Financial Analytical Unit (FÚO) pursuant to Act 253/2008 Coll.",checklist:["Compile statistics on suspicious activity reports (SARs) filed during 2025","Document number and value of CDD checks performed","Prepare breakdown of high-risk vs. standard-risk customers","Include summary of AML training sessions conducted and staff trained","Report on internal AML audits completed and key findings","Document all changes to AML policies and procedures made during the year","Include overview of new products/services assessed for ML/TF risk","Obtain MLRO (Money Laundering Reporting Officer) sign-off","Obtain board approval of annual AML report","Submit report to FÚO via official portal by January 31","Archive submission confirmation and retain for 5 years"]},
+  {id:2,title:"AML Annual Report to FAÚ",date:"2026-01-31",regulation:"AML/CFT",institutions:["Banks","Payment Institutions","E-money Institutions","Investment Firms","CASPs","Insurance"],description:"Annual report on AML/CFT activities submitted to the Financial Analytical Unit (FAÚ) pursuant to Act 253/2008 Coll.",checklist:["Compile statistics on suspicious activity reports (SARs) filed during 2025","Document number and value of CDD checks performed","Prepare breakdown of high-risk vs. standard-risk customers","Include summary of AML training sessions conducted and staff trained","Report on internal AML audits completed and key findings","Document all changes to AML policies and procedures made during the year","Include overview of new products/services assessed for ML/TF risk","Obtain MLRO (Money Laundering Reporting Officer) sign-off","Obtain board approval of annual AML report","Submit report to FAÚ via official portal by January 31","Archive submission confirmation and retain for 5 years"]},
   {id:3,title:"PSD2 Payment Fraud Report H2",date:"2026-01-31",regulation:"PSD2",institutions:["Banks","Payment Institutions","E-money Institutions"],description:"Semi-annual payment fraud statistical report to CNB for H2 of previous year, per EBA Guidelines on fraud reporting under PSD2 Art. 96(6).",checklist:["Extract payment fraud data from core banking/payment system for Jul–Dec 2025","Classify fraud by payment instrument (card, credit transfer, direct debit, e-money)","Calculate fraud rates and total fraud values per instrument","Include data on fraud prevention measures applied (SCA, monitoring, blocking)","Reconcile figures with internal fraud management system","Obtain compliance and risk sign-off on data accuracy","Complete CNB fraud reporting template (EBA format)","Submit via CNB SDAT reporting portal by January 31","Archive submission and underlying data for audit trail"]},
   {id:4,title:"CNB Monthly FINREP/COREP – December",date:"2026-01-30",regulation:"CNB Reporting",institutions:["Banks","Investment Firms"],description:"Monthly FINREP and COREP submission for December 2025 to CNB via SDAT portal.",checklist:["Extract balance sheet and P&L data from core banking system for December","Reconcile FINREP templates with general ledger","Calculate regulatory capital and RWA for December 31","Complete all mandatory FINREP templates (F 01–F 46 as applicable)","Complete COREP CA templates (capital adequacy)","Run validation rules and resolve all errors","Obtain CFO review and sign-off","Submit via CNB SDAT portal by January 30","Store submission receipt and validation report","Update internal capital adequacy dashboard"]},
   {id:5,title:"DORA Q4 ICT Incident Register Review",date:"2026-02-14",regulation:"DORA",institutions:["Banks","Payment Institutions","E-money Institutions","Investment Firms","Insurance","CASPs","CCPs","CSDs","Trading Venues"],description:"Quarterly review of ICT-related incident register and submission of Q4 statistical report to CNB per DORA Art. 19(5).",checklist:["Review all ICT incidents logged in Q4 in the incident management system","Reclassify any incidents under updated DORA classification criteria","Identify any incidents that should have been reported as major but were not","Prepare quarterly statistical report on ICT incidents for CNB","Include root cause analysis summaries for major incidents","Update ICT incident response playbooks based on Q4 learnings","Brief CISO and CRO on Q4 incident trends and recurring patterns","Submit quarterly statistical report to CNB by February 14","Archive register and report for supervisory review"]},
@@ -156,7 +264,7 @@ const EVENTS = [
   {id:43,title:"EMIR Annual Margin Model Validation",date:"2026-09-30",regulation:"EMIR",institutions:["Banks","Investment Firms","CCPs"],description:"Annual validation of initial margin models (SIMM or schedule-based) for non-cleared OTC derivatives per EMIR margin rules.",checklist:["Review initial margin model (SIMM or internal model) for accuracy and calibration","Back-test margin model against historical market moves for adequacy","Assess whether model calibration remains appropriate given current market conditions","Review netting set composition for any structural changes","Verify variation margin exchange procedures are correctly implemented","Check margin dispute procedures and resolution within 5 business days","Review collateral eligibility criteria and haircuts applied","Obtain independent model validation team sign-off","Update model documentation and assumption log","Retain validation report for regulatory inspection"]},
   {id:44,title:"CNB Monthly FINREP/COREP – August",date:"2026-09-30",regulation:"CNB Reporting",institutions:["Banks","Investment Firms"],description:"Monthly FINREP and COREP submission for August 2026 to CNB.",checklist:["Extract balance sheet and P&L data for August 2026","Reconcile FINREP templates with general ledger","Calculate regulatory capital for August 31 month-end","Complete all mandatory FINREP templates","Run validation rules","Obtain CFO sign-off","Submit via CNB SDAT portal by September 30","Store submission receipt"]},
   {id:45,title:"PSD2 Annual Security Assessment",date:"2026-10-31",regulation:"PSD2",institutions:["Banks","Payment Institutions","E-money Institutions"],description:"Annual assessment of security measures for payment services per PSD2 Art. 95 and EBA Guidelines on operational and security risk management.",checklist:["Review SCA implementation for all payment types (online banking, card, mobile)","Assess SCA exemptions applied and fraud rates per exemption type","Review fraud monitoring systems, alert thresholds, and false-positive rates","Conduct security testing of online and mobile banking channels","Review API security for Open Banking / PSD2 TPP access","Assess physical security of payment data centres and infrastructure","Review staff security awareness training completion rates","Test operational security incident response procedures","Review network security, IDS/IPS, and penetration testing results","Obtain CISO sign-off on security assessment report","Report material findings to board and to CNB if required","Retain assessment documentation for supervisory review"]},
-  {id:46,title:"AML Annual Risk Assessment Update",date:"2026-10-31",regulation:"AML/CFT",institutions:["Banks","Payment Institutions","E-money Institutions","Investment Firms","Insurance","CASPs"],description:"Annual update of the institution-wide AML/CFT risk assessment per AMLD5/6 and Act 253/2008 s.21a.",checklist:["Review FATF, EBA, and FÚO typologies and guidance published during the year","Update country risk classifications using latest FATF/EU/Czech high-risk country lists","Assess ML/TF risks from new products, services, or customer segments introduced in 2026","Review distribution channel risks (digital onboarding, agents, correspondent banks)","Review customer risk scoring methodology and calibrate if needed","Assess effectiveness of existing AML controls (testing, audit, monitoring results)","Identify residual risks and propose additional controls","Conduct ML/TF risk workshop with all business lines","Obtain MLRO endorsement and board approval of updated risk assessment","Distribute to relevant staff and update training accordingly","Retain risk assessment for 5 years"]},
+  {id:46,title:"AML Annual Risk Assessment Update",date:"2026-10-31",regulation:"AML/CFT",institutions:["Banks","Payment Institutions","E-money Institutions","Investment Firms","Insurance","CASPs"],description:"Annual update of the institution-wide AML/CFT risk assessment per AMLD5/6 and Act 253/2008 s.21a.",checklist:["Review FATF, EBA, and FAÚ typologies and guidance published during the year","Update country risk classifications using latest FATF/EU/Czech high-risk country lists","Assess ML/TF risks from new products, services, or customer segments introduced in 2026","Review distribution channel risks (digital onboarding, agents, correspondent banks)","Review customer risk scoring methodology and calibrate if needed","Assess effectiveness of existing AML controls (testing, audit, monitoring results)","Identify residual risks and propose additional controls","Conduct ML/TF risk workshop with all business lines","Obtain MLRO endorsement and board approval of updated risk assessment","Distribute to relevant staff and update training accordingly","Retain risk assessment for 5 years"]},
   {id:47,title:"DORA Annual Self-Assessment",date:"2026-10-15",regulation:"DORA",institutions:["Banks","Payment Institutions","E-money Institutions","Investment Firms","Insurance","CASPs","CCPs","CSDs","Trading Venues"],description:"Annual DORA self-assessment to evaluate maturity of digital operational resilience per DORA Art. 6(6) and supervisory guidelines.",checklist:["Assess ICT risk management framework against DORA Arts. 5–16 requirements","Assess ICT-related incident detection, classification, and reporting (Arts. 17–23)","Assess digital operational resilience testing programme adequacy (Arts. 24–27)","Assess ICT third-party risk management framework (Arts. 28–44)","Assess information sharing arrangements and threat intelligence (Art. 45)","Score each domain: Fully Compliant / Partially Compliant / Non-Compliant","Identify gaps and assign owners with remediation deadlines","Benchmark against CNB and EBA/ESMA/EIOPA supervisory expectations","Present self-assessment to board/management body for discussion","Submit to CNB if required as part of supervisory programme","Retain self-assessment and supporting evidence for 5 years"]},
   {id:48,title:"CNB Monthly FINREP/COREP – September",date:"2026-10-30",regulation:"CNB Reporting",institutions:["Banks","Investment Firms"],description:"Monthly FINREP and COREP submission for September 2026 to CNB.",checklist:["Extract balance sheet and P&L data for September 2026","Reconcile FINREP templates with general ledger","Calculate regulatory capital for September 30 month-end","Complete all mandatory FINREP templates","Run validation rules","Obtain CFO sign-off","Submit via CNB SDAT portal by October 30","Store submission receipt"]},
   {id:49,title:"Solvency II QRT Q3",date:"2026-11-04",regulation:"Solvency II",institutions:["Insurance"],description:"Quarterly QRT submission for Q3 (July–September 2026) to CNB, 5 weeks after September 30.",checklist:["Prepare quarterly solo QRTs: S.01.02, S.02.01, S.05.01, S.17.01, S.23.01","Calculate SCR and MCR as at September 30","Prepare technical provisions templates","Reconcile with management accounts","Validate using EIOPA validation rules","Obtain actuarial sign-off","Submit to CNB by November 4","Archive supporting data"]},
@@ -166,15 +274,14 @@ const EVENTS = [
   {id:53,title:"CNB Monthly FINREP/COREP – October",date:"2026-11-30",regulation:"CNB Reporting",institutions:["Banks","Investment Firms"],description:"Monthly FINREP and COREP submission for October 2026 to CNB.",checklist:["Extract balance sheet and P&L data for October 2026","Reconcile FINREP templates with general ledger","Calculate regulatory capital for October 31 month-end","Complete all mandatory FINREP templates","Run validation rules","Obtain CFO sign-off","Submit via CNB SDAT portal by November 30","Store submission receipt"]},
   {id:54,title:"IRRBB Semi-Annual Report H2",date:"2026-12-31",regulation:"CRR3/Basel III",institutions:["Banks"],description:"Semi-annual IRRBB report to CNB for H2 (July–December 2026) per EBA IRRBB Guidelines and CRR3.",checklist:["Calculate EVE sensitivity under 6 standard rate shocks as at December 31","Calculate NII sensitivity over 12-month forward-looking horizon","Assess compliance with outlier thresholds (>20% CET1 for EVE, >5% Tier 1 for NII)","Review and update IRRBB limits if required by risk appetite review","Assess effectiveness of IRRBB hedging positions","Prepare IRRBB report with EVE and NII tables","Include CSRBB assessment","Obtain ALCO sign-off","Submit to CNB as part of SREP reporting","Archive calculations and model assumptions"]},
   {id:55,title:"GDPR Annual Compliance Review",date:"2026-12-31",regulation:"GDPR",institutions:["Banks","Payment Institutions","E-money Institutions","Investment Firms","Insurance","CASPs"],description:"Annual GDPR compliance review covering ROPA, processor agreements, DPIAs, privacy notices, and data subject rights procedures.",checklist:["Review and update Records of Processing Activities (ROPA)","Audit data processor agreements for GDPR Art. 28 compliance","Review data subject rights procedures and response times (access, erasure, portability)","Assess data minimisation – identify and remediate over-collection","Review and enforce data retention schedules and deletion procedures","Update privacy notices if processing activities or purposes have changed","Review international data transfer mechanisms (SCCs, adequacy decisions)","Check DPIAs are current for all high-risk processing activities","Assess adequacy of technical and organisational security measures","Obtain DPO sign-off on annual review findings","Report findings to board or management committee"]},
-  {id:56,title:"AML Policy Annual Review",date:"2026-12-31",regulation:"AML/CFT",institutions:["Banks","Payment Institutions","E-money Institutions","Investment Firms","Insurance","CASPs"],description:"Annual review and update of AML/CFT policies and procedures per Act 253/2008 Coll. and AMLD requirements.",checklist:["Review AML/CFT policy against updated regulatory requirements and FÚO guidance","Update CDD procedures for any new customer types, products, or channels","Review and update sanctions screening procedures and list coverage (EU, UN, OFAC, HM Treasury)","Update PEP identification, enhanced due diligence, and monitoring procedures","Review SAR internal reporting and escalation procedures for timeliness","Update record-keeping procedures (5-year retention confirmed)","Review correspondent banking due diligence procedures","Incorporate any EBA Opinion or guidance published during the year","Obtain MLRO endorsement and board approval of updated policy","Communicate updates to all relevant staff","Retain previous version and change log for audit trail"]},
+  {id:56,title:"AML Policy Annual Review",date:"2026-12-31",regulation:"AML/CFT",institutions:["Banks","Payment Institutions","E-money Institutions","Investment Firms","Insurance","CASPs"],description:"Annual review and update of AML/CFT policies and procedures per Act 253/2008 Coll. and AMLD requirements.",checklist:["Review AML/CFT policy against updated regulatory requirements and FAÚ guidance","Update CDD procedures for any new customer types, products, or channels","Review and update sanctions screening procedures and list coverage (EU, UN, OFAC, HM Treasury)","Update PEP identification, enhanced due diligence, and monitoring procedures","Review SAR internal reporting and escalation procedures for timeliness","Update record-keeping procedures (5-year retention confirmed)","Review correspondent banking due diligence procedures","Incorporate any EBA Opinion or guidance published during the year","Obtain MLRO endorsement and board approval of updated policy","Communicate updates to all relevant staff","Retain previous version and change log for audit trail"]},
   {id:57,title:"Czech Banking Act Annual Compliance Review",date:"2026-12-31",regulation:"Czech Law",institutions:["Banks"],description:"Annual review of compliance with Czech Act 21/1992 Coll. (Banking Act), including licensing conditions, governance, and prudential obligations.",checklist:["Verify all banking license conditions remain met (capital, governance, fit & proper)","Review board and supervisory board composition vs. CNB fitness & propriety requirements","Assess compliance with Banking Act governance requirements (risk, audit, and remuneration committees)","Review related-party transactions log for regulatory compliance and arm's length pricing","Check compliance with concentration limits and large exposure rules","Review deposit guarantee scheme (DGS) obligations and reporting","Assess compliance with CNB individual requirements and CNB decrees","Review resolution planning obligations (MREL, resolvability)","Obtain board sign-off on Banking Act annual compliance review","Document any breaches, near-misses, or regulatory dialogue and remediation actions"]},
   {id:58,title:"Capital Market Act Annual Review",date:"2026-12-31",regulation:"Czech Law",institutions:["Investment Firms","Trading Venues","CSDs"],description:"Annual compliance review under Czech Act 256/2004 Coll. (Capital Market Undertakings Act), covering MiFID II transposition and CNB licensing obligations.",checklist:["Verify all CNB license conditions under Act 256/2004 remain satisfied","Review authorised investment services being provided against license scope","Check compliance with client classification and profiling requirements","Review conflict of interest register, policy, and management","Assess outsourcing arrangements against regulatory requirements","Review record-keeping obligations compliance (5-year retention)","Check inducements policy and fee disclosures compliance","Review compliance monitoring programme coverage and adequacy","Obtain compliance officer sign-off on annual review","Report to board and document all findings and remediation plans"]},
   {id:59,title:"DORA ICT Business Continuity Test",date:"2026-12-15",regulation:"DORA",institutions:["Banks","Payment Institutions","E-money Institutions","Investment Firms","Insurance","CASPs","CCPs","CSDs"],description:"Annual ICT business continuity and disaster recovery test per DORA Art. 11(6). Tests must cover critical functions and systems.",checklist:["Define test scope: list of critical ICT systems and business functions","Prepare test scenario (e.g. primary DC failure, ransomware attack, key vendor outage)","Notify relevant BCP, ICT, and business line teams","Execute failover to DR site and measure actual RTO (Recovery Time Objective)","Verify RPO (Recovery Point Objective) is met for all critical systems","Test internal and external communication protocols during simulated incident","Involve senior management and critical business line owners","Document test results: successes, failures, time to recover each system","Identify all gaps and assign remediation owners and deadlines","Report test results to board/management body","Update BCP/DRP based on test findings within 30 days"]},
   {id:60,title:"CNB Monthly FINREP/COREP – November",date:"2026-12-31",regulation:"CNB Reporting",institutions:["Banks","Investment Firms"],description:"Monthly FINREP and COREP submission for November 2026 to CNB.",checklist:["Extract balance sheet and P&L data for November 2026","Reconcile FINREP templates with general ledger","Calculate regulatory capital for November 30 month-end","Complete all mandatory FINREP templates","Run validation rules","Obtain CFO sign-off","Submit via CNB SDAT portal by December 31","Store submission receipt"]}
 ];
 
-// ─────────────────────────────────────────────────────────────────────────
-
+// ─── STATE ───────────────────────────────────────────────────────────────────
 const today = new Date();
 let currentYear = 2026;
 let currentMonth = today.getFullYear() === 2026 ? today.getMonth() : 0;
@@ -223,8 +330,7 @@ function getFilteredEvents() {
   });
 }
 
-// ─────────────────────────────────────────────────────────────────────────
-
+// ─── RENDER CALENDAR ─────────────────────────────────────────────────────────
 function renderAll() {
   renderCalendar();
   renderSidebar();
@@ -322,7 +428,7 @@ function renderCalendar() {
         <div style="width:10px;height:10px;border-radius:50%;background:${getColor(ev.regulation)};flex-shrink:0;"></div>
         <div class="flex-1 min-w-0">
           <div class="text-sm font-medium text-slate-800 truncate">${ev.title}</div>
-          <div class="text-xs text-slate-400">${formatDate(ev.date)} • ${ev.regulation}</div>
+          <div class="text-xs text-slate-400">${formatDate(ev.date)} · ${ev.regulation}</div>
         </div>
         <div class="text-right flex-shrink-0">
           <div class="text-xs font-semibold text-slate-600">${prog.pct}%</div>
@@ -393,8 +499,7 @@ function renderProgressSummary() {
   `;
 }
 
-// ─────────────────────────────────────────────────────────────────────────
-
+// ─── MODAL ───────────────────────────────────────────────────────────────────
 function openModal(eventId) {
   const ev = EVENTS.find(e => e.id === eventId);
   if (!ev) return;
@@ -498,8 +603,7 @@ function goToday() {
   renderAll();
 }
 
-// ─────────────────────────────────────────────────────────────────────────
-
+// ─── INIT ────────────────────────────────────────────────────────────────────
 renderAll();
 </script>
 </body>
